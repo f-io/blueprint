@@ -1,0 +1,279 @@
+blueprint:
+  name: "ZY-ZHPS01 mmWave Presence Sensor"
+  description: |  
+    Configuration of a ZY-ZHPS01 mmWave Presence Sensor.
+    
+    **Configure Tasmota with template** 
+    ```   
+    Template {"NAME":"ZY-ZHPS01","GPIO":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,2304,2272],"FLAG":0,"BASE":1,"CMND":"SO97 0 | TuyaMCU 99,1 | TuyaMCU 75,11 | Rule3 1"}
+    ```
+    
+    **Add rule in Tasmota** 
+    
+    ```   
+    rule3
+    on tuyareceived#dptype4id101 do publish %topic%/presence %value% endon
+    on tuyareceived#dptype2id104 do publish %topic%/holdtime %value% endon
+    on tuyareceived#dptype2id105 do publish %topic%/sensitivity %value% endon
+    on tuyareceived#dptype2id107 do publish %topic%/microsensitivity %value% endon    
+    on tuyareceived#dptype2id109 do publish %topic%/maxrange %value% endon
+    on tuyareceived#dptype2id110 do publish %topic%/minrange %value% endon
+    on tuyareceived#dptype2id111 do publish %topic%/micromaxrange %value% endon
+    on tuyareceived#dptype2id112 do publish %topic%/microminrange %value% endon
+    ```
+    all IDs are obvious customized by the manufacturer.
+
+  domain: automation
+  input:
+    tasmota_device:
+      name: "Tasmota Device"
+      description: "Select the Tasmota device"
+      selector:
+        device:
+          integration: tasmota
+          manufacturer: "Tasmota"
+    topic:
+      name: Tasmota MQTT Topic 
+      description: | 
+          Found in the web UI "Information" menu under "MQTT Topic" or with `Topic` command
+      selector: 
+        text:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  device_id: !input tasmota_device
+  topic: !input topic
+  connections: "{{ device_attr(device_id, 'connections') }}"
+  name: "{{ device_attr(device_id, 'name') if device_attr(device_id, 'name_by_user') == None else device_attr(device_id, 'name_by_user') }}"
+  macaddr: >-
+    {%- for i in device_attr(device_id, 'connections') -%}
+      {{ i[1].replace(":", "") }}
+    {% endfor %}
+  payload_presence: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Presence",
+        "device_class":"occupancy",
+        "state_topic":"' ~ topic ~ '/presence",
+        "payload_on":"1",
+        "payload_off":"0",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_presence",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}
+  payload_holdtime: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Hold Time",
+        "icon":"hass:account-tie-voice-off",
+        "min":"30",
+        "max":"180",
+        "step":"30",
+        "unit_of_measurement":"s",
+        "state_topic":"' ~ topic ~ '/holdtime",
+        "value_template":"{{ value }}",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"104,{{ value }}",
+        "mode":"box",
+        "entity_category":"config",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_holdtime",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}  
+  payload_sensitivity: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Sensitivity",
+        "icon":"hass:radar",
+        "min":"0",
+        "max":"10",
+        "step":"1",
+        "state_topic":"' ~ topic ~ '/sensitivity",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"105,{{ value }}",
+        "mode":"slider",
+        "entity_category":"config",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_sensitivity",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}
+  payload_microsensitivity: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Micro Sensitivity",
+        "icon":"hass:radar",
+        "min":"0",
+        "max":"10",
+        "step":"1",
+        "state_topic":"' ~ topic ~ '/microsensitivity",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"107,{{ value }}",
+        "mode":"slider",
+        "entity_category":"config",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_microsensitivity",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}  
+  payload_maxrange: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Maximum Range",
+        "icon":"hass:magnify-plus-cursor",
+        "min":"0",
+        "max":"6",
+        "step":"0.10",
+        "unit_of_measurement":"m",
+        "state_topic":"' ~ topic ~ '/maxrange",
+        "value_template":"{{ value | float * 0.01 }}",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"109,{{ value | float * 100 }}",
+        "entity_category":"config",
+        "mode":"slider",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_maxrange",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}    
+  payload_minrange: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Minimum Range",
+        "icon":"hass:magnify-minus-cursor",
+        "min":"0",
+        "max":"6",
+        "step":"0.10",
+        "unit_of_measurement":"m",
+        "state_topic":"' ~ topic ~ '/minrange",
+        "value_template":"{{ value | float * 0.01 }}",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"110,{{ value | float * 100 }}",
+        "mode":"slider",
+        "entity_category":"config",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_minrange",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}
+  payload_micromaxrange: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Micro Maximum Range",
+        "icon":"hass:magnify-plus-cursor",
+        "min":"0",
+        "max":"6",
+        "step":"0.10",
+        "unit_of_measurement":"m",
+        "state_topic":"' ~ topic ~ '/micromaxrange",
+        "value_template":"{{ value | float * 0.01 }}",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"111,{{ value | float * 100 }}",
+        "entity_category":"config",
+        "mode":"slider",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_micromaxrange",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}    
+  payload_microminrange: >-
+    {{ 
+      '{
+        "name":"' ~ name ~ ' Micro Minimum Range",
+        "icon":"hass:magnify-minus-cursor",
+        "min":"0",
+        "max":"6",
+        "step":"0.10",
+        "unit_of_measurement":"m",
+        "state_topic":"' ~ topic ~ '/microminrange",
+        "value_template":"{{ value | float * 0.01 }}",
+        "command_topic":"cmnd/' ~ topic ~ '/tuyasend2",
+        "command_template":"112,{{ value | float * 100 }}",
+        "mode":"slider",
+        "entity_category":"config",
+        "avty_t":"tele/' ~ topic ~ '/LWT",
+        "pl_avail":"Online",
+        "pl_not_avail":"Offline",
+        "uniq_id":"' ~ macaddr ~ '_microminrange",
+        "dev":{"cns":[["mac","' ~ macaddr ~ '"]]}
+      }' 
+    }}
+
+trigger_variables:
+  topic: !input topic
+
+trigger:
+  - platform: homeassistant
+    event: start
+  - platform: mqtt
+    topic: '{{ "tele/" ~ topic ~ "/LWT" }}'
+    payload: "Online"
+
+action:
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/binary_sensor/{{ macaddr }}/presence/config"
+      retain: true
+      payload: "{{ payload_presence }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/sensitivity/config"
+      retain: true
+      payload: "{{ payload_sensitivity }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/fadingtime/config"
+      retain: true
+      payload: "{{ payload_holdtime }}"    
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/microsensitivity/config"
+      retain: true
+      payload: "{{ payload_microsensitivity }}"      
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/minrange/config"
+      retain: true
+      payload: "{{ payload_minrange }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/maxrange/config"
+      retain: true
+      payload: "{{ payload_maxrange }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/microminrange/config"
+      retain: true
+      payload: "{{ payload_microminrange }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/number/{{ macaddr }}/micromaxrange/config"
+      retain: true
+      payload: "{{ payload_micromaxrange }}"    
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - service: mqtt.publish
+    data:
+      topic: "cmnd/{{ topic }}/tuyasend8"
+      payload: ""
